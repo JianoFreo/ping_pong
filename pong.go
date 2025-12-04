@@ -38,24 +38,43 @@ type Ball struct {
 }
 
 type Game struct {
-	player   Paddle
-	ai       Paddle
-	ball     Ball
+	player      Paddle
+	ai          Paddle
+	ball        Ball
 	playerScore int
 	aiScore     int
-	randSrc  *rand.Rand
-	paused   bool
+	randSrc     *rand.Rand
+	paused      bool
+	bgColor     color.RGBA
 }
 
 func NewGame() *Game {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	g := &Game{
-		player: Paddle{X: 20, Y: screenHeight/2 - paddleHeight/2},
-		ai:     Paddle{X: screenWidth - 20 - paddleWidth, Y: screenHeight/2 - paddleHeight/2},
+		player:  Paddle{X: 20, Y: screenHeight/2 - paddleHeight/2},
+		ai:      Paddle{X: screenWidth - 20 - paddleWidth, Y: screenHeight/2 - paddleHeight/2},
 		randSrc: r,
 	}
+	// initialize background color and ball
+	g.randomizeBackground()
 	g.resetBall(true)
 	return g
+}
+
+func (g *Game) randomizeBackground() {
+	// Pick a random color while avoiding extremely bright backgrounds
+	rr := uint8(10 + g.randSrc.Intn(230))
+	gg := uint8(10 + g.randSrc.Intn(230))
+	bb := uint8(10 + g.randSrc.Intn(230))
+	// adjust if too bright for readable UI
+	lum := 0.299*float64(rr) + 0.587*float64(gg) + 0.114*float64(bb)
+	if lum > 180 {
+		factor := 180.0 / lum
+		rr = uint8(float64(rr) * factor)
+		gg = uint8(float64(gg) * factor)
+		bb = uint8(float64(bb) * factor)
+	}
+	g.bgColor = color.RGBA{rr, gg, bb, 255}
 }
 
 func (g *Game) resetBall(toPlayer bool) {
@@ -155,6 +174,7 @@ func (g *Game) Update() error {
 		// add vertical velocity based on where the ball hit the paddle
 		offset := (g.ball.Y + ballSize/2) - (g.player.Y + paddleHeight/2)
 		g.ball.VY = offset * 0.12
+		g.randomizeBackground()
 	}
 	// AI paddle
 	if rectsCollide(g.ball.X, g.ball.Y, ballSize, ballSize, g.ai.X, g.ai.Y, paddleWidth, paddleHeight) {
@@ -162,6 +182,7 @@ func (g *Game) Update() error {
 		g.ball.VX = -math.Abs(g.ball.VX) // go left
 		offset := (g.ball.Y + ballSize/2) - (g.ai.Y + paddleHeight/2)
 		g.ball.VY = offset * 0.12
+		g.randomizeBackground()
 	}
 
 	// Scoring: left out -> AI scores, right out -> player scores
@@ -191,7 +212,7 @@ func rectsCollide(x1, y1, w1, h1, x2, y2, w2, h2 float64) bool {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	// Background
-	ebitenutil.DrawRect(screen, 0, 0, screenWidth, screenHeight, color.RGBA{10, 10, 30, 255})
+	ebitenutil.DrawRect(screen, 0, 0, screenWidth, screenHeight, g.bgColor)
 
 	// Center dashed line
 	for y := 0; y < screenHeight; y += 20 {
