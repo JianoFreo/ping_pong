@@ -62,18 +62,21 @@ func NewGame() *Game {
 }
 
 func (g *Game) randomizeBackground() {
-	// Pick a random color while avoiding extremely bright backgrounds
-	rr := uint8(10 + g.randSrc.Intn(230))
-	gg := uint8(10 + g.randSrc.Intn(230))
-	bb := uint8(10 + g.randSrc.Intn(230))
-	// adjust if too bright for readable UI
+	// Pick a dark color: ensure luminance stays below a dark threshold
+	// Start with components in a range biased to darker values
+	rr := uint8(g.randSrc.Intn(120)) // 0-119
+	gg := uint8(g.randSrc.Intn(120))
+	bb := uint8(g.randSrc.Intn(120))
+	// Compute luminance and scale down if it somehow exceeds the dark threshold
+	const maxLum = 80.0
 	lum := 0.299*float64(rr) + 0.587*float64(gg) + 0.114*float64(bb)
-	if lum > 180 {
-		factor := 180.0 / lum
+	if lum > maxLum && lum > 0 {
+		factor := maxLum / lum
 		rr = uint8(float64(rr) * factor)
 		gg = uint8(float64(gg) * factor)
 		bb = uint8(float64(bb) * factor)
 	}
+	// Ensure alpha is opaque
 	g.bgColor = color.RGBA{rr, gg, bb, 255}
 }
 
